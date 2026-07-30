@@ -171,15 +171,15 @@ class FuncionariosScreen(ctk.CTkScrollableFrame):
 
         popup = ctk.CTkToplevel(self)
         popup.title("Nova função")
-        popup.geometry("420x420")
-        popup.resizable(False, False)
+        popup.geometry("420x480")
+        popup.resizable(False, True)
         popup.transient(self.winfo_toplevel())
         self._funcao_popup = popup
 
         ctk.CTkLabel(popup, text="Funções cadastradas", font=FONT_H2, text_color=INK).pack(
             anchor="w", padx=20, pady=(20, 8))
 
-        lista_wrap = ctk.CTkFrame(popup, fg_color="transparent")
+        lista_wrap = ctk.CTkScrollableFrame(popup, fg_color="transparent", height=140)
         lista_wrap.pack(fill="x", padx=20)
 
         def render_lista():
@@ -247,8 +247,8 @@ class FuncionariosScreen(ctk.CTkScrollableFrame):
 
         popup = ctk.CTkToplevel(self)
         popup.title("Novo tipo / estabelecimento")
-        popup.geometry("380x340")
-        popup.resizable(False, False)
+        popup.geometry("380x400")
+        popup.resizable(False, True)
         popup.transient(self.winfo_toplevel())
         self._estabelecimento_popup = popup
 
@@ -258,7 +258,7 @@ class FuncionariosScreen(ctk.CTkScrollableFrame):
                      font=FONT_SMALL, text_color=INK_SOFT, anchor="w", justify="left").pack(
             fill="x", padx=20, pady=(0, 8))
 
-        lista_wrap = ctk.CTkFrame(popup, fg_color="transparent")
+        lista_wrap = ctk.CTkScrollableFrame(popup, fg_color="transparent", height=140)
         lista_wrap.pack(fill="x", padx=20)
 
         def render_lista():
