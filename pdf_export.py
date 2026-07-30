@@ -36,7 +36,39 @@ def fmt_moeda(v):
     return f"R$ {s}"
 
 
-def _pasta_relatorios():
+def _pasta_downloads():
+    """Pasta de Downloads do usuário atual. Evita salvar dentro da pasta
+    de instalação do programa (ex: Program Files), que é protegida e
+    exige permissão de administrador para gravar arquivos."""
+    # Método robusto no Windows: pergunta pro próprio sistema onde fica
+    # a pasta de Downloads (funciona mesmo se o usuário tiver movido ela,
+    # ex: pra um OneDrive).
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            from ctypes import wintypes
+
+            class GUID(ctypes.Structure):
+                _fields_ = [("Data1", wintypes.DWORD), ("Data2", wintypes.WORD),
+                            ("Data3", wintypes.WORD), ("Data4", ctypes.c_ubyte * 8)]
+
+            FOLDERID_Downloads = GUID(0x374DE290, 0x123F, 0x4565,
+                                       (ctypes.c_ubyte * 8)(0x91, 0x64, 0x39, 0xC4, 0x92, 0x5E, 0x46, 0x7B))
+            caminho_ptr = ctypes.c_wchar_p()
+            resultado = ctypes.windll.shell32.SHGetKnownFolderPath(
+                ctypes.byref(FOLDERID_Downloads), 0, 0, ctypes.byref(caminho_ptr)
+            )
+            if resultado == 0 and caminho_ptr.value:
+                return caminho_ptr.value
+        except Exception:
+            pass
+
+    # Alternativa/fallback: pasta "Downloads" dentro da pasta do usuário
+    pasta = os.path.join(os.path.expanduser("~"), "Downloads")
+    if os.path.isdir(pasta):
+        return pasta
+
+    # Último recurso: pasta ao lado do programa (comportamento antigo)
     if getattr(sys, "frozen", False):
         base = os.path.dirname(sys.executable)
     else:
@@ -172,7 +204,7 @@ def _tabela_recibos(mes, funcionarios_com_va, styles):
 def gerar_pdf_relatorio(mes, res, incluir_recibos=False):
     """Gera o PDF do fechamento (e, opcionalmente, os recibos de vale
     alimentação logo em seguida, no MESMO arquivo) e devolve o caminho."""
-    caminho = os.path.join(_pasta_relatorios(), _nome_arquivo(mes))
+    caminho = os.path.join(_pasta_downloads(), _nome_arquivo(mes))
 
     doc = SimpleDocTemplate(caminho, pagesize=A4, topMargin=1.5 * cm, bottomMargin=1.5 * cm,
                              leftMargin=1.5 * cm, rightMargin=1.5 * cm)
@@ -206,7 +238,7 @@ def gerar_pdf_simplificado(mes, res):
     só os funcionários marcados para 'Enviar Contábil', com Nome,
     Comissão e Bonificações (individual + equipe somadas). Devolve o
     caminho do arquivo."""
-    caminho = os.path.join(_pasta_relatorios(), _nome_arquivo_simplificado(mes))
+    caminho = os.path.join(_pasta_downloads(), _nome_arquivo_simplificado(mes))
 
     doc = SimpleDocTemplate(caminho, pagesize=A4, topMargin=1.5 * cm, bottomMargin=1.5 * cm,
                              leftMargin=1.5 * cm, rightMargin=1.5 * cm)
