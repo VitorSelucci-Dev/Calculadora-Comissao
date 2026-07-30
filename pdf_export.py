@@ -17,7 +17,7 @@ import os
 import sys
 import re
 
-from reportlab.lib.pagesizes import A4
+from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib import colors
 from reportlab.lib.units import cm
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
@@ -158,12 +158,14 @@ def _elementos_relatorio(mes, res, styles):
             fmt_moeda(f["vale_alimentacao"]), fmt_moeda(l["bonif_equipe"]), fmt_moeda(l["total"]),
         ])
 
-    tabela = Table(linhas_tabela, repeatRows=1)
+    larguras_funcionarios = [5.0 * cm, 2.6 * cm, 2.6 * cm, 2.6 * cm, 1.7 * cm,
+                              2.4 * cm, 2.4 * cm, 2.1 * cm, 2.5 * cm, 2.5 * cm]
+    tabela = Table(linhas_tabela, colWidths=larguras_funcionarios, repeatRows=1)
     tabela.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), NAVY),
         ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
         ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-        ("FONTSIZE", (0, 0), (-1, -1), 7.5),
+        ("FONTSIZE", (0, 0), (-1, -1), 7),
         ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
         ("ALIGN", (0, 0), (0, -1), "LEFT"),
         ("GRID", (0, 0), (-1, -1), 0.4, LINE),
@@ -176,18 +178,18 @@ def _elementos_relatorio(mes, res, styles):
 
 
 def _tabela_recibos(mes, funcionarios_com_va, styles):
-    texto_style = ParagraphStyle("ReciboTexto", parent=styles["Normal"], fontSize=10, leading=15)
+    texto_style = ParagraphStyle("ReciboTexto", parent=styles["Normal"], fontSize=10, leading=14)
     linhas = []
     for f in funcionarios_com_va:
         conteudo = Paragraph(
             f"<b>Recibo de Vale Alimentação</b> &nbsp;·&nbsp; Mês: <b>{mes}</b><br/>"
-            f"Funcionário: <b>{f['nome']}</b> &nbsp;&nbsp;&nbsp; Valor: <b>{fmt_moeda(f['vale_alimentacao'])}</b><br/><br/>"
+            f"Funcionário: <b>{f['nome']}</b> &nbsp;&nbsp;&nbsp; Valor: <b>{fmt_moeda(f['vale_alimentacao'])}</b><br/>"
             f"Assinatura: _______________________________________________",
             texto_style,
         )
         linhas.append([conteudo])
 
-    tabela = Table(linhas, colWidths=[17 * cm], rowHeights=[6 * cm] * len(linhas))
+    tabela = Table(linhas, colWidths=[26.5 * cm], rowHeights=[4.3 * cm] * len(linhas))
     estilo = [
         ("BOX", (0, 0), (-1, -1), 0.6, LINE),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
@@ -206,8 +208,8 @@ def gerar_pdf_relatorio(mes, res, incluir_recibos=False):
     alimentação logo em seguida, no MESMO arquivo) e devolve o caminho."""
     caminho = os.path.join(_pasta_downloads(), _nome_arquivo(mes))
 
-    doc = SimpleDocTemplate(caminho, pagesize=A4, topMargin=1.5 * cm, bottomMargin=1.5 * cm,
-                             leftMargin=1.5 * cm, rightMargin=1.5 * cm)
+    doc = SimpleDocTemplate(caminho, pagesize=landscape(A4), topMargin=1.2 * cm, bottomMargin=1.2 * cm,
+                             leftMargin=1.2 * cm, rightMargin=1.2 * cm)
     styles = getSampleStyleSheet()
 
     elementos = _elementos_relatorio(mes, res, styles)
