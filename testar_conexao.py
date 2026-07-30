@@ -18,6 +18,7 @@ try:
         host=cfg["host"], port=cfg["port"], dbname=cfg["dbname"],
         user=cfg["user"], password=cfg["password"],
         connect_timeout=5,
+        client_encoding="UTF8",
     )
     cur = conn.cursor()
     cur.execute("SELECT version();")
@@ -27,6 +28,11 @@ try:
     print(f"Versão do PostgreSQL no servidor: {versao}")
 except ModuleNotFoundError:
     print("\n❌ Falta instalar a biblioteca: pip install psycopg2-binary")
+except UnicodeDecodeError:
+    print("\n❌ A conexão falhou e o PostgreSQL respondeu com uma mensagem de erro")
+    print("   que não pôde ser lida (provavelmente em português, com acento).")
+    print("   Isso quase sempre significa: senha errada, host/porta errados,")
+    print("   ou o usuário/banco não existe no servidor. Confira esses dados.")
 except Exception as e:
     print(f"\n❌ Não foi possível conectar: {e}")
     print("\nChecklist:")

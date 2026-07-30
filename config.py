@@ -31,15 +31,25 @@ def _caminho_config():
 
 def carregar_config():
     """Lê o config.json. Se ainda não existir, cria um com valores
-    padrão (apontando pra localhost) pra você editar depois."""
+    padrão (apontando pra localhost) pra você editar depois.
+
+    Tenta ler como UTF-8 primeiro; se falhar (ex: o arquivo foi escrito
+    pelo instalador em ANSI/Windows-1252, o que acontece quando a senha
+    tem acento), tenta de novo como CP1252 antes de desistir."""
     caminho = _caminho_config()
     if not os.path.exists(caminho):
         with open(caminho, "w", encoding="utf-8") as f:
             json.dump(PADRAO, f, indent=2, ensure_ascii=False)
         return dict(PADRAO)
 
-    with open(caminho, "r", encoding="utf-8") as f:
-        cfg = json.load(f)
+    with open(caminho, "rb") as f:
+        bruto = f.read()
+    try:
+        texto = bruto.decode("utf-8")
+    except UnicodeDecodeError:
+        texto = bruto.decode("cp1252")
+
+    cfg = json.loads(texto)
     completo = dict(PADRAO)
     completo.update(cfg)
     return completo

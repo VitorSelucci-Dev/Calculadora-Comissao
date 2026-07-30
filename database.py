@@ -20,10 +20,26 @@ from config import carregar_config
 class Database:
     def __init__(self, config=None):
         cfg = config or carregar_config()
-        self.conn = psycopg2.connect(
-            host=cfg["host"], port=cfg["port"], dbname=cfg["dbname"],
-            user=cfg["user"], password=cfg["password"],
-        )
+        try:
+            self.conn = psycopg2.connect(
+                host=cfg["host"], port=cfg["port"], dbname=cfg["dbname"],
+                user=cfg["user"], password=cfg["password"],
+                client_encoding="UTF8",
+            )
+        except UnicodeDecodeError:
+            # O psycopg2 tenta ler a mensagem de erro do PostgreSQL como
+            # UTF-8; se o servidor responder em português (com acento) e
+            # a decodificação falhar, isso mascara o erro real de conexão
+            # (senha errada, host errado, rede bloqueada, etc.) atrás de
+            # um UnicodeDecodeError sem sentido. Melhor avisar isso do
+            # que deixar o traceback confuso aparecer pro usuário.
+            raise RuntimeError(
+                "Não foi possível conectar ao banco de dados (o PostgreSQL respondeu "
+                "com uma mensagem de erro que não pôde ser lida corretamente - "
+                "provavelmente a conexão falhou por senha incorreta, host/porta errados, "
+                "ou a rede/firewall bloqueando o acesso). Confira o config.json e a "
+                "conexão com testar_conexao.py."
+            )
         self._criar_tabelas()
         self._seed_padroes()
 
