@@ -12,7 +12,7 @@ param(
     [Parameter(Mandatory=$true)][string]$PgInstalador,
     [Parameter(Mandatory=$true)][string]$SenhaBanco,
     [Parameter(Mandatory=$true)][string]$PastaApp,
-    [string]$SubnetRede = "192.168.0.0/24",
+    [string]$SubnetRede = "auto",
     [string]$NomeBanco = "comissoes",
     [string]$UsuarioApp = "comissoes_app",
     [int]$Porta = 5432
@@ -117,7 +117,8 @@ RodarSql "CREATE USER $UsuarioApp WITH PASSWORD '$SenhaBanco';" | Out-Null
 RodarSql "GRANT ALL PRIVILEGES ON DATABASE $NomeBanco TO $UsuarioApp;" | Out-Null
 RodarSql "ALTER SCHEMA public OWNER TO $UsuarioApp;" -banco $NomeBanco | Out-Null
 RodarSql "GRANT ALL ON SCHEMA public TO $UsuarioApp;" -banco $NomeBanco | Out-Null
-Ok "Banco '$NomeBanco' e usuario '$UsuarioApp' configurados (com posse do schema public)."
+RodarSql "ALTER SYSTEM SET lc_messages = 'C';" | Out-Null
+Ok "Banco '$NomeBanco' e usuario '$UsuarioApp' configurados (com posse do schema public, mensagens de erro em ingles pra evitar problema de acentuacao)."
 
 # ---------------------------------------------------------------
 # 5. Liberar o PostgreSQL pra aceitar conexao da rede local
@@ -127,6 +128,18 @@ Ok "Banco '$NomeBanco' e usuario '$UsuarioApp' configurados (com posse do schema
 Log "Configurando acesso pela rede local..."
 $confPath = Join-Path $dataPath "postgresql.conf"
 $hbaPath = Join-Path $dataPath "pg_hba.conf"
+
+if ($SubnetRede -eq "auto") {
+    $ipLocal = Get-NetIPAddress -AddressFamily IPv4 |
+        Where-Object { $_.IPAddress -notlike "127.*" -and $_.IPAddress -notlike "169.254.*" } |
+        Select-Object -First 1 -ExpandProperty IPAddress
+    if (-not $ipLocal) {
+        throw "Não consegui detectar o IP local deste computador automaticamente. Rode o script de novo passando -SubnetRede manualmente (ex: -SubnetRede '192.168.1.0/24')."
+    }
+    $partesIp = $ipLocal -split "\."
+    $SubnetRede = "$($partesIp[0]).$($partesIp[1]).$($partesIp[2]).0/24"
+    Log "Faixa de rede detectada automaticamente a partir do IP $ipLocal : $SubnetRede"
+}
 
 $confLinhas = [System.IO.File]::ReadAllLines($confPath)
 $confNovo = $confLinhas | ForEach-Object {
