@@ -141,39 +141,69 @@ def _elementos_relatorio(mes, res, styles):
     elementos.append(Paragraph("Funcionários", styles["Heading2"]))
     elementos.append(Spacer(1, 6))
 
+    subheading_style = ParagraphStyle("Subheading", parent=styles["Heading3"], fontSize=11,
+                                       textColor=NAVY, spaceBefore=10, spaceAfter=4)
+    nota_style = ParagraphStyle("Nota", parent=styles["Normal"], fontSize=8.5,
+                                 textColor=INK_SOFT, spaceAfter=6)
+
     cabecalho = ["Funcionário", "Vendido", "Devoluções", "Líquido", "Nível",
                  "Bônus ind.", "Comissão", "Vale", "Bônus equipe", "Total"]
-    linhas_tabela = [cabecalho]
-    for l in res["linhas"]:
-        f = l["funcionario"]
-        tem_valores = l["tem_metas"] or l["tem_venda"]
-        vendido = fmt_moeda(l["vendido"]) if tem_valores else "—"
-        devol = fmt_moeda(l["devolucoes"]) if tem_valores else "—"
-        liquido = fmt_moeda(l["liquido"]) if tem_valores else "—"
-        nivel = f"Nível {l['nivel']}" if (l["tem_metas"] and l["nivel"]) else "—"
-        bonif_ind = fmt_moeda(l["bonif_individual"]) if l["tem_metas"] else "—"
-        comissao = fmt_moeda(l["comissao"]) if l["tem_metas"] else "—"
-        linhas_tabela.append([
-            f["nome"], vendido, devol, liquido, nivel, bonif_ind, comissao,
-            fmt_moeda(f["vale_alimentacao"]), fmt_moeda(l["bonif_equipe"]), fmt_moeda(l["total"]),
-        ])
-
     larguras_funcionarios = [5.0 * cm, 2.6 * cm, 2.6 * cm, 2.6 * cm, 1.7 * cm,
                               2.4 * cm, 2.4 * cm, 2.1 * cm, 2.5 * cm, 2.5 * cm]
-    tabela = Table(linhas_tabela, colWidths=larguras_funcionarios, repeatRows=1)
-    tabela.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), NAVY),
-        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-        ("FONTSIZE", (0, 0), (-1, -1), 7),
-        ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
-        ("ALIGN", (0, 0), (0, -1), "LEFT"),
-        ("GRID", (0, 0), (-1, -1), 0.4, LINE),
-        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, PAPER]),
-        ("TOPPADDING", (0, 0), (-1, -1), 5),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-    ]))
-    elementos.append(tabela)
+
+    # Só entram setores que tiveram fechamento neste mês - e, dentro de
+    # cada um, só os funcionários cujo setor DE ORIGEM é aquele (quem
+    # apareceu como "convidado" ali fica só numa nota, já que o total a
+    # receber dele já está contabilizado no setor de origem dele).
+    for setor_res in res["setores"]:
+        empresa, estabelecimento = setor_res["empresa"], setor_res["estabelecimento"]
+        elementos.append(Paragraph(f"{empresa} - {estabelecimento}", subheading_style))
+
+        linhas_do_setor = [l for l in res["linhas"]
+                            if (l["funcionario"].get("empresa") or "—") == empresa
+                            and (l["funcionario"].get("estabelecimento") or "—") == estabelecimento]
+
+        linhas_tabela = [cabecalho]
+        for l in linhas_do_setor:
+            f = l["funcionario"]
+            tem_valores = l["tem_metas"] or l["tem_venda"]
+            vendido = fmt_moeda(l["vendido"]) if tem_valores else "—"
+            devol = fmt_moeda(l["devolucoes"]) if tem_valores else "—"
+            liquido = fmt_moeda(l["liquido"]) if tem_valores else "—"
+            nivel = f"Nível {l['nivel']}" if (l["tem_metas"] and l["nivel"]) else "—"
+            bonif_ind = fmt_moeda(l["bonif_individual"]) if l["tem_metas"] else "—"
+            comissao = fmt_moeda(l["comissao"])
+            linhas_tabela.append([
+                f["nome"], vendido, devol, liquido, nivel, bonif_ind, comissao,
+                fmt_moeda(f["vale_alimentacao"]), fmt_moeda(l["bonif_equipe"]), fmt_moeda(l["total"]),
+            ])
+
+        if len(linhas_tabela) == 1:
+            elementos.append(Paragraph("Nenhum funcionário cadastrado neste setor.", nota_style))
+            continue
+
+        tabela = Table(linhas_tabela, colWidths=larguras_funcionarios, repeatRows=1)
+        tabela.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), NAVY),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, -1), 7),
+            ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
+            ("ALIGN", (0, 0), (0, -1), "LEFT"),
+            ("GRID", (0, 0), (-1, -1), 0.4, LINE),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, PAPER]),
+            ("TOPPADDING", (0, 0), (-1, -1), 5),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+        ]))
+        elementos.append(tabela)
+
+        convidados = [l for l in setor_res["linhas"] if l["convidado"]]
+        if convidados:
+            nomes = ", ".join(c["funcionario"]["nome"] for c in convidados)
+            elementos.append(Paragraph(
+                f"Também venderam aqui como convidados (valores já somados no setor de origem de cada um): {nomes}",
+                nota_style))
+
     return elementos
 
 
@@ -257,10 +287,14 @@ def gerar_pdf_simplificado(mes, res):
         Paragraph(f"Relatório simplificado — {mes}", subtitulo_style),
     ]
 
+    setores_do_mes = {(s["empresa"], s["estabelecimento"]) for s in res["setores"]}
+
     grupos = {}
     for l in res["linhas"]:
         f = l["funcionario"]
         chave = (f.get("empresa") or "—", f.get("estabelecimento") or "—")
+        if chave not in setores_do_mes:
+            continue
         grupos.setdefault(chave, []).append(l)
 
     if not grupos:

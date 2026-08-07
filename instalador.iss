@@ -16,7 +16,7 @@
 ; serviço podem ser necessários dependendo da versão do PostgreSQL.
 
 #define MyAppName "Painel de Comissoes"
-#define MyAppVersion "1.0"
+#define MyAppVersion "2.0.0"
 #define MyAppExeName "PainelDeComissoes.exe"
 
 [Setup]

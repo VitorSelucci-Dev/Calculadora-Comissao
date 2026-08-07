@@ -14,6 +14,7 @@ que cada funcionário vendeu no mês, em qualquer setor.
 
 ## Índice
 
+- [Changelog](CHANGELOG.md)
 - [Funcionalidades](#funcionalidades)
 - [Tecnologias](#tecnologias)
 - [Estrutura do projeto](#estrutura-do-projeto)

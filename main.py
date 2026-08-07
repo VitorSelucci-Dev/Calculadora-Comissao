@@ -9,6 +9,8 @@ import tkinter as tk
 import os
 import sys
 
+__version__ = "2.0.0"
+
 from widgets import NAVY, NAVY_SOFT, PAPER, INK_SOFT_ON_NAVY
 from database import Database
 from screens.home import HomeScreen
@@ -32,7 +34,7 @@ def _caminho_icone():
 class App(ctk.CTk):
     def __init__(self):
         super().__init__()
-        self.title("Painel de Comissões")
+        self.title(f"Painel de Comissões — v{__version__}")
         try:
             self.iconbitmap(_caminho_icone())
         except Exception:

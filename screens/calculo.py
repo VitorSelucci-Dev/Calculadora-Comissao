@@ -398,7 +398,7 @@ class CalculoScreen(ctk.CTkScrollableFrame):
                      font=FONT_BODY, text_color=INK_SOFT, anchor="w").grid(row=2, column=0, sticky="w", pady=(0, 18))
 
         fechamentos_mes = self.app.fechamentos.get(mes, {})
-        res = calcular_mes_completo(self.app.funcionarios, self.app.metas_equipe, fechamentos_mes)
+        res = calcular_mes_completo(self.app.funcionarios, self.app.metas_equipe, fechamentos_mes, self.app.funcoes, self.app.estabelecimentos)
 
         setor_card = Card(self.month_frame)
         setor_card.grid(row=3, column=0, sticky="ew", pady=(0, 16))
@@ -455,10 +455,10 @@ class CalculoScreen(ctk.CTkScrollableFrame):
             if l["tem_metas"]:
                 nivel_badge(func_tbl, l["nivel"]).grid(row=r, column=4, sticky="w", pady=4)
                 ctk.CTkLabel(func_tbl, text=fmt_moeda(l["bonif_individual"]), font=FONT_BODY, text_color=INK).grid(row=r, column=5, sticky="w", pady=4)
-                ctk.CTkLabel(func_tbl, text=fmt_moeda(l["comissao"]), font=FONT_BODY, text_color=INK).grid(row=r, column=6, sticky="w", pady=4)
             else:
-                for col in (4, 5, 6):
+                for col in (4, 5):
                     ctk.CTkLabel(func_tbl, text="—", font=FONT_BODY, text_color=INK_SOFT).grid(row=r, column=col, sticky="w", pady=4)
+            ctk.CTkLabel(func_tbl, text=fmt_moeda(l["comissao"]), font=FONT_BODY, text_color=INK).grid(row=r, column=6, sticky="w", pady=4)
             ctk.CTkLabel(func_tbl, text=fmt_moeda(f["vale_alimentacao"]), font=FONT_BODY, text_color=INK).grid(row=r, column=7, sticky="w", pady=4)
             ctk.CTkLabel(func_tbl, text=fmt_moeda(l["bonif_equipe"]), font=FONT_BODY, text_color=INK).grid(row=r, column=8, sticky="w", pady=4)
             ctk.CTkLabel(func_tbl, text=fmt_moeda(l["total"]), font=("Segoe UI Semibold", 13), text_color=INK).grid(row=r, column=9, sticky="w", pady=4)

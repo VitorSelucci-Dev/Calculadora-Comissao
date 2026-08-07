@@ -20,7 +20,7 @@ from tkinter import messagebox
 
 from widgets import (
     Card, TierRow, MoneyEntry, parse_num, fmt_moeda,
-    PAPER, INK, INK_SOFT, LINE, TEAL, TEAL_DARK, RED,
+    PAPER, INK, INK_SOFT, LINE, TEAL, TEAL_DARK, RED, AMBER,
     FONT_H1, FONT_H2, FONT_BODY, FONT_SMALL,
 )
 
@@ -88,10 +88,12 @@ class FuncionariosScreen(ctk.CTkScrollableFrame):
         self.emp_va_entry = MoneyEntry(form)
         self.emp_va_entry.grid(row=4, column=1, sticky="ew", padx=10, pady=(2, 10))
 
-        ctk.CTkLabel(form, text="Comissão sobre vendas (%)", font=FONT_SMALL, text_color=INK_SOFT, anchor="w").grid(
-            row=3, column=2, sticky="w", padx=(0, 20))
+        self.emp_comissao_wrap = ctk.CTkFrame(form, fg_color="transparent")
+        self.emp_comissao_wrap.grid(row=3, column=2, rowspan=2, sticky="new", padx=(0, 20))
+        ctk.CTkLabel(self.emp_comissao_wrap, text="Comissão sobre vendas (%)", font=FONT_SMALL,
+                     text_color=INK_SOFT, anchor="w").pack(fill="x", pady=(0, 2))
         self.emp_comissao_var = tk.StringVar()
-        ctk.CTkEntry(form, textvariable=self.emp_comissao_var).grid(row=4, column=2, sticky="ew", padx=(10, 20), pady=(2, 10))
+        ctk.CTkEntry(self.emp_comissao_wrap, textvariable=self.emp_comissao_var).pack(fill="x", pady=(0, 10))
 
         ctk.CTkLabel(form, text="Empresa", font=FONT_SMALL, text_color=INK_SOFT, anchor="w").grid(
             row=5, column=0, sticky="w", padx=20)
@@ -164,62 +166,181 @@ class FuncionariosScreen(ctk.CTkScrollableFrame):
         f = next((x for x in self.app.funcoes if x["nome"] == nome), None)
         return bool(f["tem_metas"]) if f else False
 
+    def _modelo_funcao(self, nome):
+        f = next((x for x in self.app.funcoes if x["nome"] == nome), None)
+        return f.get("modelo_comissao", "padrao") if f else "padrao"
+
+    MODELOS_COMISSAO = {
+        "Padrão (metas individuais + comissão própria + bônus fixo de equipe)": "padrao",
+        "Sem comissão nem metas": "nenhum",
+        "Gerência (comissão sobre a equipe + bônus fixo se bater a meta)": "gerencia",
+        "Percentual da equipe (bônus % sobre o total da equipe)": "percentual_equipe",
+        "Auxiliar condicional (% sobre a própria produção, conforme metas)": "auxiliar_condicional",
+    }
+    MODELOS_LABEL = {v: k for k, v in MODELOS_COMISSAO.items()}
+
     def abrir_popup_funcao(self):
         if self._funcao_popup is not None and self._funcao_popup.winfo_exists():
             self._funcao_popup.focus()
             return
 
         popup = ctk.CTkToplevel(self)
-        popup.title("Nova função")
-        popup.geometry("420x480")
+        popup.title("Função")
+        popup.geometry("460x760")
         popup.resizable(False, True)
         popup.transient(self.winfo_toplevel())
         self._funcao_popup = popup
 
         ctk.CTkLabel(popup, text="Funções cadastradas", font=FONT_H2, text_color=INK).pack(
             anchor="w", padx=20, pady=(20, 8))
+        ctk.CTkLabel(popup, text="Clique numa função pra editar o modelo de comissão dela.",
+                     font=FONT_SMALL, text_color=INK_SOFT, anchor="w").pack(fill="x", padx=20, pady=(0, 8))
 
-        lista_wrap = ctk.CTkScrollableFrame(popup, fg_color="transparent", height=140)
+        lista_wrap = ctk.CTkScrollableFrame(popup, fg_color="transparent", height=110)
         lista_wrap.pack(fill="x", padx=20)
+
+        nome_var = tk.StringVar()
+        modelo_var = tk.StringVar(value=list(self.MODELOS_COMISSAO.keys())[0])
+        comissao_equipe_var = tk.StringVar(value="0")
+        percentual_bonif_var = tk.StringVar(value="0")
+        pct_ambos_var = tk.StringVar(value="0")
+        pct_individual_var = tk.StringVar(value="0")
+        pct_geral_var = tk.StringVar(value="0")
 
         def render_lista():
             for w in lista_wrap.winfo_children():
                 w.destroy()
             for f in self.app.funcoes:
-                cor_bg = "#E4F6F3" if f["tem_metas"] else "#EEEEE9"
-                cor_fg = TEAL_DARK if f["tem_metas"] else INK_SOFT
-                texto = f["nome"] + ("  ·  com metas" if f["tem_metas"] else "  ·  sem metas")
-                ctk.CTkLabel(lista_wrap, text=texto, font=FONT_SMALL, text_color=cor_fg,
-                             fg_color=cor_bg, corner_radius=6, anchor="w").pack(fill="x", pady=2, ipady=3, ipadx=6)
+                modelo = f.get("modelo_comissao", "padrao")
+                personalizado = modelo not in ("padrao", "nenhum")
+                cor_bg = "#FBF1DC" if personalizado else ("#E4F6F3" if f["tem_metas"] else "#EEEEE9")
+                cor_fg = AMBER if personalizado else (TEAL_DARK if f["tem_metas"] else INK_SOFT)
+                texto = f"{f['nome']}  ·  {self.MODELOS_LABEL.get(modelo, modelo).split(' (')[0]}"
+
+                linha = ctk.CTkFrame(lista_wrap, fg_color=cor_bg, corner_radius=6)
+                linha.pack(fill="x", pady=2)
+                linha.grid_columnconfigure(0, weight=1)
+                ctk.CTkLabel(linha, text=texto, font=FONT_SMALL, text_color=cor_fg, anchor="w").grid(
+                    row=0, column=0, sticky="w", padx=8, pady=6)
+                ctk.CTkButton(linha, text="Editar", width=50, height=22, fg_color="transparent",
+                              border_width=1, border_color=LINE, text_color=INK_SOFT, font=FONT_SMALL,
+                              command=lambda ff=f: carregar(ff)).grid(row=0, column=1, padx=(0, 4), pady=4)
+                ctk.CTkButton(linha, text="Excluir", width=54, height=22, fg_color="transparent",
+                              border_width=1, border_color="#E9C9C6", text_color=RED, font=FONT_SMALL,
+                              command=lambda ff=f: excluir(ff)).grid(row=0, column=2, padx=(0, 6), pady=4)
+
+        def excluir(f):
+            em_uso = sum(1 for func in self.app.funcionarios if func.get("funcao") == f["nome"])
+            aviso = f"\n\n{em_uso} funcionário(s) usam essa função e ficarão sem função válida." if em_uso else ""
+            if not messagebox.askyesno("Painel de Comissões",
+                                        f"Excluir a função \"{f['nome']}\"?{aviso}", parent=popup):
+                return
+            self.app.db.excluir_funcao(f["nome"])
+            self.app.funcoes = self.app.db.listar_funcoes()
+            render_lista()
+            self.funcao_menu.configure(values=self._nomes_funcoes())
+            self._toggle_emp_funcao()
+
+        def carregar(f):
+            titulo_form.configure(text=f"Editando: {f['nome']}")
+            nome_var.set(f["nome"])
+            modelo_var.set(self.MODELOS_LABEL.get(f.get("modelo_comissao", "padrao")))
+            comissao_equipe_var.set(str(f.get("comissao_equipe_percent", 0)))
+            bonif_fixa_entry.set_value(f.get("bonificacao_fixa", 0))
+            percentual_bonif_var.set(str(f.get("percentual_bonif_equipe", 0)))
+            pct_ambos_var.set(str(f.get("pct_individual_e_geral", 0)))
+            pct_individual_var.set(str(f.get("pct_somente_individual", 0)))
+            pct_geral_var.set(str(f.get("pct_somente_geral", 0)))
+            render_campos()
 
         render_lista()
 
-        ctk.CTkLabel(popup, text="Nome da nova função", font=FONT_SMALL, text_color=INK_SOFT, anchor="w").pack(
-            fill="x", padx=20, pady=(18, 2))
-        nome_var = tk.StringVar()
+        titulo_form = ctk.CTkLabel(popup, text="Nova função", font=FONT_H2, text_color=INK, anchor="w")
+        titulo_form.pack(fill="x", padx=20, pady=(14, 4))
+
+        ctk.CTkLabel(popup, text="Nome da função", font=FONT_SMALL, text_color=INK_SOFT, anchor="w").pack(
+            fill="x", padx=20, pady=(2, 2))
         ctk.CTkEntry(popup, textvariable=nome_var, placeholder_text="Ex: Supervisor").pack(fill="x", padx=20)
 
-        metas_var = tk.BooleanVar(value=True)
-        ctk.CTkCheckBox(popup, text="Possui metas individuais e comissão",
-                        variable=metas_var, font=FONT_SMALL).pack(anchor="w", padx=20, pady=14)
+        ctk.CTkLabel(popup, text="Modelo de comissão", font=FONT_SMALL, text_color=INK_SOFT, anchor="w").pack(
+            fill="x", padx=20, pady=(12, 2))
+        ctk.CTkOptionMenu(popup, values=list(self.MODELOS_COMISSAO.keys()), variable=modelo_var,
+                          command=lambda _: render_campos()).pack(fill="x", padx=20)
 
-        def adicionar():
+        campos_wrap = ctk.CTkFrame(popup, fg_color="transparent")
+        campos_wrap.pack(fill="x", padx=20, pady=(10, 0))
+
+        bonif_fixa_entry = MoneyEntry(popup)  # criado uma vez, reposicionado dentro de campos_wrap quando necessário
+
+        def campo(parent, texto, var):
+            ctk.CTkLabel(parent, text=texto, font=FONT_SMALL, text_color=INK_SOFT, anchor="w").pack(
+                fill="x", pady=(6, 2))
+            ctk.CTkEntry(parent, textvariable=var).pack(fill="x")
+
+        def render_campos():
+            for w in campos_wrap.winfo_children():
+                w.pack_forget()
+            bonif_fixa_entry.pack_forget()
+            modelo = self.MODELOS_COMISSAO.get(modelo_var.get(), "padrao")
+
+            if modelo == "gerencia":
+                campo(campos_wrap, "Comissão sobre o total da equipe (%)", comissao_equipe_var)
+                ctk.CTkLabel(campos_wrap, text="Bonificação fixa se a meta geral for atingida (R$)",
+                             font=FONT_SMALL, text_color=INK_SOFT, anchor="w").pack(fill="x", pady=(6, 2))
+                bonif_fixa_entry.pack(in_=campos_wrap, fill="x")
+            elif modelo == "percentual_equipe":
+                campo(campos_wrap, "Percentual sobre o total da equipe, se bater a meta geral (%)", percentual_bonif_var)
+            elif modelo == "auxiliar_condicional":
+                ctk.CTkLabel(campos_wrap, text="Percentuais sobre a própria produção, conforme o que for batido:",
+                             font=FONT_SMALL, text_color=INK_SOFT, anchor="w", wraplength=400).pack(fill="x", pady=(4, 2))
+                campo(campos_wrap, "% se bater a meta individual E a meta geral", pct_ambos_var)
+                campo(campos_wrap, "% se bater só a meta individual", pct_individual_var)
+                campo(campos_wrap, "% se bater só a meta geral", pct_geral_var)
+            else:
+                ctk.CTkLabel(campos_wrap, text="Esse modelo não precisa de campos extras.",
+                             font=FONT_SMALL, text_color=INK_SOFT, anchor="w").pack(fill="x", pady=(4, 2))
+
+        render_campos()
+
+        def limpar_formulario():
+            titulo_form.configure(text="Nova função")
+            nome_var.set("")
+            modelo_var.set(list(self.MODELOS_COMISSAO.keys())[0])
+            comissao_equipe_var.set("0")
+            bonif_fixa_entry.set_value(0)
+            percentual_bonif_var.set("0")
+            pct_ambos_var.set("0")
+            pct_individual_var.set("0")
+            pct_geral_var.set("0")
+            render_campos()
+
+        def salvar():
             nome = nome_var.get().strip()
             if not nome:
                 messagebox.showwarning("Painel de Comissões", "Informe o nome da função.", parent=popup)
                 return
-            if any(f["nome"].lower() == nome.lower() for f in self.app.funcoes):
-                messagebox.showwarning("Painel de Comissões", "Já existe uma função com esse nome.", parent=popup)
-                return
-            self.app.db.salvar_funcao(nome, metas_var.get())
+            modelo = self.MODELOS_COMISSAO.get(modelo_var.get(), "padrao")
+            tem_metas = modelo in ("padrao", "auxiliar_condicional")
+            self.app.db.salvar_funcao(
+                nome, tem_metas, modelo_comissao=modelo,
+                comissao_equipe_percent=parse_num(comissao_equipe_var.get()),
+                bonificacao_fixa=bonif_fixa_entry.get_value(),
+                percentual_bonif_equipe=parse_num(percentual_bonif_var.get()),
+                pct_individual_e_geral=parse_num(pct_ambos_var.get()),
+                pct_somente_individual=parse_num(pct_individual_var.get()),
+                pct_somente_geral=parse_num(pct_geral_var.get()),
+            )
             self.app.funcoes = self.app.db.listar_funcoes()
-            nome_var.set("")
-            metas_var.set(True)
+            limpar_formulario()
             render_lista()
             self.funcao_menu.configure(values=self._nomes_funcoes())
+            self._toggle_emp_funcao()
 
-        ctk.CTkButton(popup, text="Adicionar função", fg_color=TEAL, hover_color=TEAL_DARK,
-                      command=adicionar).pack(fill="x", padx=20, pady=(0, 8))
+        ctk.CTkButton(popup, text="Salvar função", fg_color=TEAL, hover_color=TEAL_DARK,
+                      command=salvar).pack(fill="x", padx=20, pady=(16, 4))
+        ctk.CTkButton(popup, text="Cancelar edição", fg_color="transparent", border_width=1,
+                      border_color=LINE, text_color=INK_SOFT,
+                      command=limpar_formulario).pack(fill="x", padx=20, pady=(0, 8))
         ctk.CTkButton(popup, text="Fechar", fg_color="transparent", border_width=1,
                       border_color=LINE, text_color=INK_SOFT,
                       command=popup.destroy).pack(fill="x", padx=20, pady=(0, 20))
@@ -246,54 +367,74 @@ class FuncionariosScreen(ctk.CTkScrollableFrame):
             return
 
         popup = ctk.CTkToplevel(self)
-        popup.title("Novo tipo / estabelecimento")
-        popup.geometry("380x400")
+        popup.title("Tipo / estabelecimento")
+        popup.geometry("400x480")
         popup.resizable(False, True)
         popup.transient(self.winfo_toplevel())
         self._estabelecimento_popup = popup
 
         ctk.CTkLabel(popup, text="Tipos cadastrados", font=FONT_H2, text_color=INK).pack(
             anchor="w", padx=20, pady=(20, 8))
-        ctk.CTkLabel(popup, text="Ex: Oficina, Autopeças - use pra separar os funcionários por área.",
+        ctk.CTkLabel(popup, text="Ex: Oficina, Autopeças. Clique num tipo pra editar o modo de cálculo dele.",
                      font=FONT_SMALL, text_color=INK_SOFT, anchor="w", justify="left").pack(
             fill="x", padx=20, pady=(0, 8))
 
         lista_wrap = ctk.CTkScrollableFrame(popup, fg_color="transparent", height=140)
         lista_wrap.pack(fill="x", padx=20)
 
+        nome_var = tk.StringVar()
+        modo_var = tk.StringVar(value="Padrão")
+
         def render_lista():
             for w in lista_wrap.winfo_children():
                 w.destroy()
             for e in self.app.estabelecimentos:
-                ctk.CTkLabel(lista_wrap, text=e["nome"], font=FONT_SMALL, text_color=TEAL_DARK,
-                             fg_color="#E4F6F3", corner_radius=6, anchor="w").pack(fill="x", pady=2, ipady=3, ipadx=6)
+                personalizado = e.get("modo_calculo") == "personalizado"
+                cor_bg = "#FBF1DC" if personalizado else "#E4F6F3"
+                cor_fg = AMBER if personalizado else TEAL_DARK
+                texto = f"{e['nome']}  ·  {'Personalizado' if personalizado else 'Padrão'}"
+                chip = ctk.CTkLabel(lista_wrap, text=texto, font=FONT_SMALL, text_color=cor_fg,
+                                     fg_color=cor_bg, corner_radius=6, anchor="w", cursor="hand2")
+                chip.pack(fill="x", pady=2, ipady=3, ipadx=6)
+                chip.bind("<Button-1>", lambda ev, est=e: carregar(est))
+
+        def carregar(est):
+            nome_var.set(est["nome"])
+            modo_var.set("Personalizado" if est.get("modo_calculo") == "personalizado" else "Padrão")
 
         render_lista()
 
-        ctk.CTkLabel(popup, text="Nome do novo tipo", font=FONT_SMALL, text_color=INK_SOFT, anchor="w").pack(
+        ctk.CTkLabel(popup, text="Nome do tipo", font=FONT_SMALL, text_color=INK_SOFT, anchor="w").pack(
             fill="x", padx=20, pady=(16, 2))
-        nome_var = tk.StringVar()
         ctk.CTkEntry(popup, textvariable=nome_var, placeholder_text="Ex: Estoque").pack(fill="x", padx=20)
 
-        def adicionar():
+        ctk.CTkLabel(popup, text="Modo de cálculo", font=FONT_SMALL, text_color=INK_SOFT, anchor="w").pack(
+            fill="x", padx=20, pady=(14, 4))
+        modo_row = ctk.CTkFrame(popup, fg_color="transparent")
+        modo_row.pack(fill="x", padx=20)
+        ctk.CTkRadioButton(modo_row, text="Padrão (metas individuais + comissão + bônus fixo de equipe)",
+                           variable=modo_var, value="Padrão").pack(anchor="w", pady=(0, 4))
+        ctk.CTkRadioButton(modo_row, text="Personalizado (usa o modelo de comissão configurado em cada função)",
+                           variable=modo_var, value="Personalizado").pack(anchor="w")
+
+        def salvar():
             nome = nome_var.get().strip()
             if not nome:
                 messagebox.showwarning("Painel de Comissões", "Informe o nome do tipo.", parent=popup)
                 return
-            if any(e["nome"].lower() == nome.lower() for e in self.app.estabelecimentos):
-                messagebox.showwarning("Painel de Comissões", "Já existe um tipo com esse nome.", parent=popup)
-                return
-            self.app.db.salvar_estabelecimento(nome)
+            modo = "personalizado" if modo_var.get() == "Personalizado" else "padrao"
+            self.app.db.salvar_estabelecimento(nome, modo)
             self.app.estabelecimentos = self.app.db.listar_estabelecimentos()
             nome_var.set("")
+            modo_var.set("Padrão")
             render_lista()
             self.estabelecimento_menu.configure(values=self._nomes_estabelecimentos())
             tela_metas = self.app.sections.get("metas")
             if tela_metas is not None and hasattr(tela_metas, "atualizar_listas"):
                 tela_metas.atualizar_listas()
 
-        ctk.CTkButton(popup, text="Adicionar tipo", fg_color=TEAL, hover_color=TEAL_DARK,
-                      command=adicionar).pack(fill="x", padx=20, pady=(14, 8))
+        ctk.CTkButton(popup, text="Salvar tipo", fg_color=TEAL, hover_color=TEAL_DARK,
+                      command=salvar).pack(fill="x", padx=20, pady=(14, 8))
         ctk.CTkButton(popup, text="Fechar", fg_color="transparent", border_width=1,
                       border_color=LINE, text_color=INK_SOFT,
                       command=popup.destroy).pack(fill="x", padx=20, pady=(0, 20))
@@ -341,6 +482,15 @@ class FuncionariosScreen(ctk.CTkScrollableFrame):
         else:
             self.emp_tiers_wrap.grid_remove()
 
+        # A comissão por percentual individual só faz sentido no modelo
+        # "padrão" - os outros modelos (gerência, % da equipe, auxiliar
+        # condicional) calculam a comissão de outro jeito, configurado
+        # na função, não aqui no funcionário.
+        if self._modelo_funcao(self.emp_funcao_var.get()) == "padrao":
+            self.emp_comissao_wrap.grid()
+        else:
+            self.emp_comissao_wrap.grid_remove()
+
     # ---------------- CRUD ----------------
     def cancelar_edicao_funcionario(self):
         self.editing_id = None
@@ -369,6 +519,7 @@ class FuncionariosScreen(ctk.CTkScrollableFrame):
         try:
             funcao = self.emp_funcao_var.get()
             tem_metas = self._funcao_tem_metas(funcao)
+            modelo = self._modelo_funcao(funcao)
             dados = {
                 "codigo": self.emp_id_var.get().strip(),
                 "nome": nome,
@@ -377,7 +528,7 @@ class FuncionariosScreen(ctk.CTkScrollableFrame):
                 "estabelecimento": self.emp_estabelecimento_var.get(),
                 "salario_base": self.emp_salario_entry.get_value(),
                 "vale_alimentacao": self.emp_va_entry.get_value(),
-                "comissao_percent": parse_num(self.emp_comissao_var.get()) if tem_metas else 0,
+                "comissao_percent": parse_num(self.emp_comissao_var.get()) if modelo == "padrao" else 0,
                 "metas": [{"nivel": i + 1, **row.get()} for i, row in enumerate(self.emp_tier_rows)] if tem_metas else [],
                 "recebe_bonif_equipe": self.emp_bonif_equipe_var.get(),
                 "enviar_contabil": self.emp_contabil_var.get(),

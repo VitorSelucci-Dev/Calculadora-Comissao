@@ -41,6 +41,7 @@ class Database:
                 "conexão com testar_conexao.py."
             )
         self._criar_tabelas()
+        self._migrar_schema()
         self._seed_padroes()
 
     def _cur(self):
@@ -114,6 +115,25 @@ class Database:
         self.conn.commit()
         cur.close()
 
+    def _migrar_schema(self):
+        """Adiciona colunas novas em bancos que já existiam antes dessa
+        versão (funciona igual em banco novo - as colunas simplesmente
+        já nascem prontas). Usa ADD COLUMN IF NOT EXISTS, então é
+        seguro rodar toda vez que o programa abre."""
+        cur = self._cur()
+        cur.execute("""
+        ALTER TABLE funcoes ADD COLUMN IF NOT EXISTS modelo_comissao TEXT NOT NULL DEFAULT 'padrao';
+        ALTER TABLE funcoes ADD COLUMN IF NOT EXISTS comissao_equipe_percent NUMERIC NOT NULL DEFAULT 0;
+        ALTER TABLE funcoes ADD COLUMN IF NOT EXISTS bonificacao_fixa NUMERIC NOT NULL DEFAULT 0;
+        ALTER TABLE funcoes ADD COLUMN IF NOT EXISTS percentual_bonif_equipe NUMERIC NOT NULL DEFAULT 0;
+        ALTER TABLE funcoes ADD COLUMN IF NOT EXISTS pct_individual_e_geral NUMERIC NOT NULL DEFAULT 0;
+        ALTER TABLE funcoes ADD COLUMN IF NOT EXISTS pct_somente_individual NUMERIC NOT NULL DEFAULT 0;
+        ALTER TABLE funcoes ADD COLUMN IF NOT EXISTS pct_somente_geral NUMERIC NOT NULL DEFAULT 0;
+        ALTER TABLE estabelecimentos ADD COLUMN IF NOT EXISTS modo_calculo TEXT NOT NULL DEFAULT 'padrao';
+        """)
+        self.conn.commit()
+        cur.close()
+
     def _seed_padroes(self):
         cur = self._cur()
         cur.execute("SELECT COUNT(*) AS c FROM funcoes")
@@ -137,18 +157,47 @@ class Database:
     # ================= Funções (cargos) =================
     def listar_funcoes(self):
         cur = self._cur()
-        cur.execute("SELECT nome, tem_metas FROM funcoes ORDER BY nome")
-        resultado = [{"nome": r["nome"], "tem_metas": bool(r["tem_metas"])} for r in cur.fetchall()]
+        cur.execute("""
+            SELECT nome, tem_metas, modelo_comissao, comissao_equipe_percent, bonificacao_fixa,
+                   percentual_bonif_equipe, pct_individual_e_geral, pct_somente_individual, pct_somente_geral
+            FROM funcoes ORDER BY nome
+        """)
+        resultado = []
+        for r in cur.fetchall():
+            f = dict(r)
+            f["tem_metas"] = bool(f["tem_metas"])
+            for campo in ("comissao_equipe_percent", "bonificacao_fixa", "percentual_bonif_equipe",
+                          "pct_individual_e_geral", "pct_somente_individual", "pct_somente_geral"):
+                f[campo] = float(f[campo])
+            resultado.append(f)
         cur.close()
         return resultado
 
-    def salvar_funcao(self, nome, tem_metas):
+    def salvar_funcao(self, nome, tem_metas, modelo_comissao="padrao", comissao_equipe_percent=0,
+                       bonificacao_fixa=0, percentual_bonif_equipe=0, pct_individual_e_geral=0,
+                       pct_somente_individual=0, pct_somente_geral=0):
         cur = self._cur()
-        cur.execute(
-            "INSERT INTO funcoes (nome, tem_metas) VALUES (%s,%s) "
-            "ON CONFLICT (nome) DO UPDATE SET tem_metas = EXCLUDED.tem_metas",
-            (nome, bool(tem_metas))
-        )
+        cur.execute("""
+            INSERT INTO funcoes (nome, tem_metas, modelo_comissao, comissao_equipe_percent, bonificacao_fixa,
+                                  percentual_bonif_equipe, pct_individual_e_geral, pct_somente_individual, pct_somente_geral)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            ON CONFLICT (nome) DO UPDATE SET
+                tem_metas = EXCLUDED.tem_metas,
+                modelo_comissao = EXCLUDED.modelo_comissao,
+                comissao_equipe_percent = EXCLUDED.comissao_equipe_percent,
+                bonificacao_fixa = EXCLUDED.bonificacao_fixa,
+                percentual_bonif_equipe = EXCLUDED.percentual_bonif_equipe,
+                pct_individual_e_geral = EXCLUDED.pct_individual_e_geral,
+                pct_somente_individual = EXCLUDED.pct_somente_individual,
+                pct_somente_geral = EXCLUDED.pct_somente_geral
+        """, (nome, bool(tem_metas), modelo_comissao, comissao_equipe_percent, bonificacao_fixa,
+              percentual_bonif_equipe, pct_individual_e_geral, pct_somente_individual, pct_somente_geral))
+        self.conn.commit()
+        cur.close()
+
+    def excluir_funcao(self, nome):
+        cur = self._cur()
+        cur.execute("DELETE FROM funcoes WHERE nome=%s", (nome,))
         self.conn.commit()
         cur.close()
 
@@ -175,14 +224,17 @@ class Database:
     # ================= Estabelecimentos (tipos) =================
     def listar_estabelecimentos(self):
         cur = self._cur()
-        cur.execute("SELECT nome FROM estabelecimentos ORDER BY nome")
-        resultado = [{"nome": r["nome"]} for r in cur.fetchall()]
+        cur.execute("SELECT nome, modo_calculo FROM estabelecimentos ORDER BY nome")
+        resultado = [{"nome": r["nome"], "modo_calculo": r["modo_calculo"]} for r in cur.fetchall()]
         cur.close()
         return resultado
 
-    def salvar_estabelecimento(self, nome):
+    def salvar_estabelecimento(self, nome, modo_calculo="padrao"):
         cur = self._cur()
-        cur.execute("INSERT INTO estabelecimentos (nome) VALUES (%s) ON CONFLICT (nome) DO NOTHING", (nome,))
+        cur.execute("""
+            INSERT INTO estabelecimentos (nome, modo_calculo) VALUES (%s,%s)
+            ON CONFLICT (nome) DO UPDATE SET modo_calculo = EXCLUDED.modo_calculo
+        """, (nome, modo_calculo))
         self.conn.commit()
         cur.close()
 

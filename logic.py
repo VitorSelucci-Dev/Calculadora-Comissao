@@ -100,22 +100,66 @@ def vendas_consolidadas_funcionario(fechamentos_mes, funcionario_id):
     return total_vendido, total_devolucoes, apareceu
 
 
-def calcular_mes_completo(funcionarios, metas_equipe, fechamentos_mes):
+def obter_config_funcao(funcoes, nome_funcao):
+    """Devolve o dict de configuração da função (cargo) pelo nome, ou
+    None se não encontrar (funcionário com função "solta"/excluída)."""
+    for cfg in funcoes:
+        if cfg["nome"] == nome_funcao:
+            return cfg
+    return None
+
+
+def obter_modo_calculo(estabelecimentos, nome_estabelecimento):
+    """Devolve 'padrao' ou 'personalizado' - o modo de cálculo
+    configurado para esse setor. 'padrao' se não encontrar."""
+    for e in estabelecimentos:
+        if e["nome"] == nome_estabelecimento:
+            return e.get("modo_calculo", "padrao")
+    return "padrao"
+
+
+def calcular_mes_completo(funcionarios, metas_equipe, fechamentos_mes, funcoes, estabelecimentos):
     """
     fechamentos_mes: dict {(empresa, estabelecimento): {"vendas": {...}, "criado_em": ...}}
     (ou seja, app.fechamentos.get(mes, {}))
+    funcoes: app.funcoes - lista de configuração de cada função/cargo,
+    incluindo o modelo de comissão (ver database.py).
+    estabelecimentos: app.estabelecimentos - lista de setores, cada um
+    com seu modo de cálculo ("padrao" ou "personalizado"). É o setor
+    de ORIGEM do funcionário que decide se o modelo de comissão da
+    função dele vale ou não - num setor "padrao", todo mundo usa o
+    cálculo clássico, não importa o que a função diga.
 
     Retorna a folha consolidada do mês inteiro: o resultado de cada
     setor que teve fechamento, e uma linha por funcionário com o total
-    a receber (metas/comissão pelo total vendido no mês inteiro,
-    bônus de equipe pelo setor de origem).
+    a receber, calculado conforme o MODELO DE COMISSÃO da função dele:
+
+    - "padrao": metas individuais (níveis) + comissão sobre a própria
+      produção + bônus de equipe (valor fixo por nível, do setor de
+      origem) - é o modelo "Vendedor" de sempre.
+    - "nenhum": sem metas nem comissão; só recebe o bônus de equipe
+      (valor fixo) se estiver marcado para isso.
+    - "gerencia": sem metas individuais; comissão em % sobre o TOTAL
+      vendido pela equipe do setor de origem; bônus FIXO (valor
+      configurado na função) se a meta geral do setor for atingida.
+    - "percentual_equipe": sem metas nem comissão própria; bônus em %
+      sobre o total da equipe, só se a meta geral for atingida.
+    - "auxiliar_condicional": tem meta individual (só usada pra saber
+      se bateu ou não, não gera bônus fixo); recebe uma % sobre a
+      PRÓPRIA produção, e essa % muda conforme bateu a meta individual
+      e/ou a meta geral do setor. Não recebe bônus de equipe.
     """
     setores = []
     bonif_por_setor = {}
+    liquido_equipe_por_setor = {}
+    meta_geral_atingida_por_setor = {}
     for (empresa, estabelecimento), registro in fechamentos_mes.items():
         resultado = calcular_fechamento_setor(funcionarios, metas_equipe, empresa, estabelecimento, registro["vendas"])
         setores.append(resultado)
-        bonif_por_setor[(empresa, estabelecimento)] = resultado["bonificacao"]
+        chave = (empresa, estabelecimento)
+        bonif_por_setor[chave] = resultado["bonificacao"]
+        liquido_equipe_por_setor[chave] = resultado["total_liquido"]
+        meta_geral_atingida_por_setor[chave] = resultado["nivel"] > 0
 
     linhas = []
     for f in funcionarios:
@@ -123,19 +167,55 @@ def calcular_mes_completo(funcionarios, metas_equipe, fechamentos_mes):
         liquido = total_vendido - total_devolucoes
         tem_metas = bool(f["metas"])
 
-        if tem_metas:
-            tier = nivel_atingido(liquido, f["metas"])
-            nivel = tier["nivel"] if tier else 0
-            bonif_individual = tier["bonificacao"] if tier else 0.0
-            comissao = liquido * (f.get("comissao_percent") or 0) / 100
-        else:
+        chave_origem = (f.get("empresa"), f.get("estabelecimento"))
+        bonif_grupo_tier = bonif_por_setor.get(chave_origem, 0.0)
+        liquido_equipe_origem = liquido_equipe_por_setor.get(chave_origem, 0.0)
+        meta_geral_atingida = meta_geral_atingida_por_setor.get(chave_origem, False)
+
+        cfg_funcao = obter_config_funcao(funcoes, f.get("funcao")) or {}
+        modo_setor = obter_modo_calculo(estabelecimentos, f.get("estabelecimento"))
+        modelo = cfg_funcao.get("modelo_comissao", "padrao") if modo_setor == "personalizado" else "padrao"
+
+        if modelo == "gerencia":
+            nivel = None
+            bonif_individual = 0.0
+            comissao = liquido_equipe_origem * (cfg_funcao.get("comissao_equipe_percent") or 0) / 100
+            bonif_equipe = (cfg_funcao.get("bonificacao_fixa") or 0) if meta_geral_atingida else 0.0
+
+        elif modelo == "percentual_equipe":
             nivel = None
             bonif_individual = 0.0
             comissao = 0.0
+            bonif_equipe = (liquido_equipe_origem * (cfg_funcao.get("percentual_bonif_equipe") or 0) / 100
+                             if meta_geral_atingida else 0.0)
 
-        chave_origem = (f.get("empresa"), f.get("estabelecimento"))
-        bonif_grupo = bonif_por_setor.get(chave_origem, 0.0)
-        bonif_equipe = bonif_grupo if f.get("recebe_bonif_equipe", True) else 0.0
+        elif modelo == "auxiliar_condicional":
+            tier = nivel_atingido(liquido, f["metas"]) if tem_metas else None
+            individual_atingida = tier is not None
+            nivel = tier["nivel"] if tier else 0
+            if individual_atingida and meta_geral_atingida:
+                pct = cfg_funcao.get("pct_individual_e_geral") or 0
+            elif individual_atingida and not meta_geral_atingida:
+                pct = cfg_funcao.get("pct_somente_individual") or 0
+            elif not individual_atingida and meta_geral_atingida:
+                pct = cfg_funcao.get("pct_somente_geral") or 0
+            else:
+                pct = 0
+            comissao = liquido * pct / 100
+            bonif_individual = 0.0
+            bonif_equipe = 0.0
+
+        else:  # "padrao" ou "nenhum" (e qualquer função sem modelo definido, por segurança)
+            if tem_metas:
+                tier = nivel_atingido(liquido, f["metas"])
+                nivel = tier["nivel"] if tier else 0
+                bonif_individual = tier["bonificacao"] if tier else 0.0
+                comissao = liquido * (f.get("comissao_percent") or 0) / 100
+            else:
+                nivel = None
+                bonif_individual = 0.0
+                comissao = 0.0
+            bonif_equipe = bonif_grupo_tier if f.get("recebe_bonif_equipe", True) else 0.0
 
         total = f["salario_base"] + f["vale_alimentacao"] + comissao + bonif_individual + bonif_equipe
 

@@ -147,7 +147,7 @@ class RelatorioScreen(ctk.CTkScrollableFrame):
         meses.sort(key=_mes_ordenacao)
         registros = []
         for mes in meses:
-            res = calcular_mes_completo(self.app.funcionarios, self.app.metas_equipe, self.app.fechamentos.get(mes, {}))
+            res = calcular_mes_completo(self.app.funcionarios, self.app.metas_equipe, self.app.fechamentos.get(mes, {}), self.app.funcoes, self.app.estabelecimentos)
             registros.extend(linhas_detalhadas_mes(mes, res))
 
         if self.filtro_loja_var.get() != "Todas":
