@@ -1,8 +1,14 @@
 # Painel de Comissões
 
-Aplicação desktop para Windows que calcula comissões e bonificações de funcionários com base em metas — individuais e de equipe — por loja e setor, com banco de dados compartilhado em rede local entre vários computadores.
+Aplicação desktop para Windows que calcula comissões e bonificações de
+funcionários com base em metas — individuais e de equipe — por loja e
+setor, com banco de dados compartilhado em rede local entre vários
+computadores.
 
-Feito para negócios com mais de uma filial e/ou mais de um setor por loja (ex: uma oficina e uma loja de autopeças na mesma matriz), onde cada setor tem sua própria meta coletiva, mas a folha final soma tudo que cada funcionário vendeu no mês, em qualquer setor.
+Feito para negócios com mais de uma filial e/ou mais de um setor por
+loja (ex: uma oficina e uma loja de autopeças na mesma matriz), onde
+cada setor tem sua própria meta coletiva, mas a folha final soma tudo
+que cada funcionário vendeu no mês, em qualquer setor.
 
 ---
 
@@ -15,6 +21,7 @@ Feito para negócios com mais de uma filial e/ou mais de um setor por loja (ex: 
 - [Rodando em modo de desenvolvimento](#rodando-em-modo-de-desenvolvimento)
 - [Banco de dados compartilhado (PostgreSQL)](#banco-de-dados-compartilhado-postgresql)
 - [Gerando o instalador Windows](#gerando-o-instalador-windows)
+- [Documentação técnica](#documentação-técnica)
 - [Solução de problemas](#solução-de-problemas)
 
 ---
@@ -23,26 +30,43 @@ Feito para negócios com mais de uma filial e/ou mais de um setor por loja (ex: 
 
 **Funcionários**
 
-- Cadastro com ID, nome, função (customizável — cada função diz se tem metas/comissão ou não), empresa (loja), tipo/estabelecimento (setor), salário base, vale alimentação e comissão sobre vendas
-- Metas individuais em níveis (quantos você quiser, adicionar remover livremente), cada nível com sua própria bonificação
-- Checkbox **"Recebe bonificação de equipe"** — permite excluir um funcionário específico do bônus coletivo do setor dele
-- Checkbox **"Enviar Contábil?"** — controla quem aparece no relatório simplificado de impressão
+- Cadastro com ID, nome, função (customizável — cada função diz se tem
+  metas/comissão ou não), empresa (loja), tipo/estabelecimento (setor),
+  salário base, vale alimentação e comissão sobre vendas
+- Metas individuais em níveis (quantos você quiser, adicionar/remover
+  livremente), cada nível com sua própria bonificação
+- Checkbox **"Recebe bonificação de equipe"** — permite excluir um
+  funcionário específico do bônus coletivo do setor dele
+- Checkbox **"Enviar Contábil?"** — controla quem aparece no relatório
+  simplificado de impressão
 
 **Empresas e setores**
 
 - Cadastro de múltiplas empresas/filiais (menu "⚙ Configurações")
-- Cadastro de tipos/estabelecimentos (ex: Oficina, Autopeças) — cada combinação de loja + setor tem sua própria meta de equipe
+- Cadastro de tipos/estabelecimentos (ex: Oficina, Autopeças) — cada
+  combinação de loja + setor tem sua própria meta de equipe
 
 **Metas & Bonificações**
 
-- Configuração de níveis de meta coletiva por **loja + setor** especificamente (não é uma meta única pra empresa toda)
+- Configuração de níveis de meta coletiva por **loja + setor**
+  especificamente (não é uma meta única pra empresa toda)
 
 **Cálculo Mensal**
 
-- Preenchimento por **setor**: escolhe loja, setor e mês, e lança o valor vendido (e devoluções) de cada vendedor daquele setor
-- Um funcionário pode ser "convidado" no fechamento de outro setor (ex: alguém da Oficina que vendeu na Autopeças) — a venda conta no total daquele setor, mas o bônus de equipe dele continua vindo do setor de origem
-- **Folha completa do mês**: consolida todos os setores fechados naquele mês e calcula o total a receber de cada funcionário (a comissão e a meta individual consideram tudo que a pessoa vendeu no mês, em qualquer setor)
-- Impressão em PDF: relatório completo, recibos de vale alimentação (compactos, vários por folha) e um relatório simplificado por loja/setor (nome, comissão e bonificações), respeitando quem está marcado para não entrar no contábil
+- Preenchimento por **setor**: escolhe loja, setor e mês, e lança o
+  valor vendido (e devoluções) de cada vendedor daquele setor
+- Um funcionário pode ser "convidado" no fechamento de outro setor
+  (ex: alguém da Oficina que vendeu na Autopeças) — a venda conta no
+  total daquele setor, mas o bônus de equipe dele continua vindo do
+  setor de origem
+- **Folha completa do mês**: consolida todos os setores fechados
+  naquele mês e calcula o total a receber de cada funcionário (a
+  comissão e a meta individual consideram tudo que a pessoa vendeu no
+  mês, em qualquer setor)
+- Impressão em PDF: relatório completo, recibos de vale alimentação
+  (compactos, vários por folha) e um relatório simplificado por
+  loja/setor (nome, comissão e bonificações), respeitando quem está
+  marcado para não entrar no contábil
 
 **Relatório**
 
@@ -237,6 +261,16 @@ automática da faixa de rede) ou se vai "usar um servidor existente"
 **Importante:** o `redist\postgresql-installer.exe` (~350MB) **nunca**
 deve ir pro Git — está no `.gitignore` por ultrapassar o limite de
 tamanho de arquivo do GitHub.
+
+---
+
+## Documentação técnica
+
+Diagramas detalhados do sistema, em `docs/`:
+
+- [`docs/casos-de-uso.md`](docs/casos-de-uso.md) — Diagrama de Casos de Uso
+- [`docs/der.md`](docs/der.md) — Diagrama de Entidade-Relacionamento (DER)
+- [`docs/arquitetura.md`](docs/arquitetura.md) — Arquitetura (topologia cliente-servidor e camadas da aplicação)
 
 ---
 
