@@ -57,19 +57,35 @@ begin
   Result := PaginaTipoInstalacao.SelectedValueIndex = 0;
 end;
 
+function EhAtualizacao(): Boolean;
+begin
+  Result := PaginaTipoInstalacao.SelectedValueIndex = 2;
+end;
+
 procedure InitializeWizard();
 begin
-  { Pergunta se este computador é o servidor principal ou não }
+  { Pergunta se este computador é o servidor principal, um cliente novo,
+    ou se é só pra atualizar uma instalação que já existe aqui }
   PaginaTipoInstalacao := CreateInputOptionPage(wpSelectDir,
-    'Tipo de instalação', 'Este computador vai guardar o banco de dados?',
+    'Tipo de instalação', 'O que você quer fazer?',
     'Escolha uma opção:' + #13#10 +
     '- "Computador principal" instala e configura o banco de dados (PostgreSQL) aqui.' + #13#10 +
-    '- "Este computador vai usar um servidor existente" só instala o programa, ' +
-    'conectando num banco que já está rodando em outro computador da rede.',
+    '- "Usar servidor existente" só instala o programa, conectando num banco que já ' +
+    'está rodando em outro computador da rede.' + #13#10 +
+    '- "Atualizar" só troca os arquivos do programa - NÃO mexe no banco de dados nem ' +
+    'no arquivo de configuração (config.json) que já existem aqui. Use essa opção ' +
+    'sempre que for só instalar uma versão nova em cima de uma que já funciona.',
     False, False);
   PaginaTipoInstalacao.Add('Este é o computador principal (servidor do banco de dados)');
   PaginaTipoInstalacao.Add('Este computador vai usar um servidor existente na rede');
-  PaginaTipoInstalacao.SelectedValueIndex := 0;
+  PaginaTipoInstalacao.Add('Atualizar uma instalação existente (não mexe no banco de dados)');
+
+  { Se já existe um config.json na pasta de instalação detectada, é bem
+    provável que a pessoa só queira atualizar - deixa essa opção pré-selecionada }
+  if FileExists(ExpandConstant('{app}') + '\config.json') then
+    PaginaTipoInstalacao.SelectedValueIndex := 2
+  else
+    PaginaTipoInstalacao.SelectedValueIndex := 0;
 
   { Página exibida só se for o servidor: pede a senha do banco }
   PaginaServidor := CreateInputQueryPage(PaginaTipoInstalacao.ID,
@@ -91,7 +107,9 @@ end;
 function ShouldSkipPage(PageID: Integer): Boolean;
 begin
   Result := False;
-  if PageID = PaginaServidor.ID then
+  if EhAtualizacao() and ((PageID = PaginaServidor.ID) or (PageID = PaginaCliente.ID)) then
+    Result := True
+  else if PageID = PaginaServidor.ID then
     Result := not EhServidor()
   else if PageID = PaginaCliente.ID then
     Result := EhServidor();
@@ -110,7 +128,14 @@ var
 begin
   if CurStep = ssPostInstall then
   begin
-    if EhServidor() then
+    if EhAtualizacao() then
+    begin
+      { Só os arquivos do programa foram trocados pela seção [Files].
+        Não mexe no config.json nem no banco de dados. }
+      MsgBox('Atualização concluída. Seus dados e configurações de conexão foram mantidos.',
+             mbInformation, MB_OK);
+    end
+    else if EhServidor() then
     begin
       SenhaBanco := PaginaServidor.Values[0];
 
