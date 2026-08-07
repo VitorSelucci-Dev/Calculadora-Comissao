@@ -79,13 +79,7 @@ begin
   PaginaTipoInstalacao.Add('Este é o computador principal (servidor do banco de dados)');
   PaginaTipoInstalacao.Add('Este computador vai usar um servidor existente na rede');
   PaginaTipoInstalacao.Add('Atualizar uma instalação existente (não mexe no banco de dados)');
-
-  { Se já existe um config.json na pasta de instalação detectada, é bem
-    provável que a pessoa só queira atualizar - deixa essa opção pré-selecionada }
-  if FileExists(ExpandConstant('{app}') + '\config.json') then
-    PaginaTipoInstalacao.SelectedValueIndex := 2
-  else
-    PaginaTipoInstalacao.SelectedValueIndex := 0;
+  PaginaTipoInstalacao.SelectedValueIndex := 0;
 
   { Página exibida só se for o servidor: pede a senha do banco }
   PaginaServidor := CreateInputQueryPage(PaginaTipoInstalacao.ID,
@@ -113,6 +107,17 @@ begin
     Result := not EhServidor()
   else if PageID = PaginaCliente.ID then
     Result := EhServidor();
+end;
+
+procedure CurPageChanged(CurPageID: Integer);
+begin
+  (* A constante de pasta de instalação só fica disponível depois que a
+     pessoa passa pela tela de pasta (wpSelectDir) - por isso essa
+     checagem não pode ficar no InitializeWizard. Se já existe um
+     config.json ali, é bem provável que seja uma atualização -
+     pré-seleciona essa opção. *)
+  if (CurPageID = PaginaTipoInstalacao.ID) and FileExists(ExpandConstant('{app}') + '\config.json') then
+    PaginaTipoInstalacao.SelectedValueIndex := 2;
 end;
 
 function ObterIPLocalPadrao(): String;

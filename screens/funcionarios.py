@@ -186,17 +186,21 @@ class FuncionariosScreen(ctk.CTkScrollableFrame):
 
         popup = ctk.CTkToplevel(self)
         popup.title("Função")
-        popup.geometry("460x760")
-        popup.resizable(False, True)
+        popup.geometry("560x680")
+        popup.minsize(480, 420)
+        popup.resizable(True, True)
         popup.transient(self.winfo_toplevel())
         self._funcao_popup = popup
 
-        ctk.CTkLabel(popup, text="Funções cadastradas", font=FONT_H2, text_color=INK).pack(
+        conteudo = ctk.CTkScrollableFrame(popup, fg_color="transparent")
+        conteudo.pack(fill="both", expand=True)
+
+        ctk.CTkLabel(conteudo, text="Funções cadastradas", font=FONT_H2, text_color=INK).pack(
             anchor="w", padx=20, pady=(20, 8))
-        ctk.CTkLabel(popup, text="Clique numa função pra editar o modelo de comissão dela.",
+        ctk.CTkLabel(conteudo, text="Clique numa função pra editar o modelo de comissão dela.",
                      font=FONT_SMALL, text_color=INK_SOFT, anchor="w").pack(fill="x", padx=20, pady=(0, 8))
 
-        lista_wrap = ctk.CTkScrollableFrame(popup, fg_color="transparent", height=110)
+        lista_wrap = ctk.CTkScrollableFrame(conteudo, fg_color="transparent", height=140)
         lista_wrap.pack(fill="x", padx=20)
 
         nome_var = tk.StringVar()
@@ -255,22 +259,22 @@ class FuncionariosScreen(ctk.CTkScrollableFrame):
 
         render_lista()
 
-        titulo_form = ctk.CTkLabel(popup, text="Nova função", font=FONT_H2, text_color=INK, anchor="w")
+        titulo_form = ctk.CTkLabel(conteudo, text="Nova função", font=FONT_H2, text_color=INK, anchor="w")
         titulo_form.pack(fill="x", padx=20, pady=(14, 4))
 
-        ctk.CTkLabel(popup, text="Nome da função", font=FONT_SMALL, text_color=INK_SOFT, anchor="w").pack(
+        ctk.CTkLabel(conteudo, text="Nome da função", font=FONT_SMALL, text_color=INK_SOFT, anchor="w").pack(
             fill="x", padx=20, pady=(2, 2))
-        ctk.CTkEntry(popup, textvariable=nome_var, placeholder_text="Ex: Supervisor").pack(fill="x", padx=20)
+        ctk.CTkEntry(conteudo, textvariable=nome_var, placeholder_text="Ex: Supervisor").pack(fill="x", padx=20)
 
-        ctk.CTkLabel(popup, text="Modelo de comissão", font=FONT_SMALL, text_color=INK_SOFT, anchor="w").pack(
+        ctk.CTkLabel(conteudo, text="Modelo de comissão", font=FONT_SMALL, text_color=INK_SOFT, anchor="w").pack(
             fill="x", padx=20, pady=(12, 2))
-        ctk.CTkOptionMenu(popup, values=list(self.MODELOS_COMISSAO.keys()), variable=modelo_var,
+        ctk.CTkOptionMenu(conteudo, values=list(self.MODELOS_COMISSAO.keys()), variable=modelo_var,
                           command=lambda _: render_campos()).pack(fill="x", padx=20)
 
-        campos_wrap = ctk.CTkFrame(popup, fg_color="transparent")
+        campos_wrap = ctk.CTkFrame(conteudo, fg_color="transparent")
         campos_wrap.pack(fill="x", padx=20, pady=(10, 0))
 
-        bonif_fixa_entry = MoneyEntry(popup)  # criado uma vez, reposicionado dentro de campos_wrap quando necessário
+        bonif_fixa_entry = MoneyEntry(conteudo)  # criado uma vez, reposicionado dentro de campos_wrap quando necessário
 
         def campo(parent, texto, var):
             ctk.CTkLabel(parent, text=texto, font=FONT_SMALL, text_color=INK_SOFT, anchor="w").pack(
@@ -336,12 +340,12 @@ class FuncionariosScreen(ctk.CTkScrollableFrame):
             self.funcao_menu.configure(values=self._nomes_funcoes())
             self._toggle_emp_funcao()
 
-        ctk.CTkButton(popup, text="Salvar função", fg_color=TEAL, hover_color=TEAL_DARK,
+        ctk.CTkButton(conteudo, text="Salvar função", fg_color=TEAL, hover_color=TEAL_DARK,
                       command=salvar).pack(fill="x", padx=20, pady=(16, 4))
-        ctk.CTkButton(popup, text="Cancelar edição", fg_color="transparent", border_width=1,
+        ctk.CTkButton(conteudo, text="Cancelar edição", fg_color="transparent", border_width=1,
                       border_color=LINE, text_color=INK_SOFT,
                       command=limpar_formulario).pack(fill="x", padx=20, pady=(0, 8))
-        ctk.CTkButton(popup, text="Fechar", fg_color="transparent", border_width=1,
+        ctk.CTkButton(conteudo, text="Fechar", fg_color="transparent", border_width=1,
                       border_color=LINE, text_color=INK_SOFT,
                       command=popup.destroy).pack(fill="x", padx=20, pady=(0, 20))
 
@@ -368,18 +372,22 @@ class FuncionariosScreen(ctk.CTkScrollableFrame):
 
         popup = ctk.CTkToplevel(self)
         popup.title("Tipo / estabelecimento")
-        popup.geometry("400x480")
-        popup.resizable(False, True)
+        popup.geometry("460x560")
+        popup.minsize(400, 380)
+        popup.resizable(True, True)
         popup.transient(self.winfo_toplevel())
         self._estabelecimento_popup = popup
 
-        ctk.CTkLabel(popup, text="Tipos cadastrados", font=FONT_H2, text_color=INK).pack(
+        conteudo = ctk.CTkScrollableFrame(popup, fg_color="transparent")
+        conteudo.pack(fill="both", expand=True)
+
+        ctk.CTkLabel(conteudo, text="Tipos cadastrados", font=FONT_H2, text_color=INK).pack(
             anchor="w", padx=20, pady=(20, 8))
-        ctk.CTkLabel(popup, text="Ex: Oficina, Autopeças. Clique num tipo pra editar o modo de cálculo dele.",
+        ctk.CTkLabel(conteudo, text="Ex: Oficina, Autopeças. Clique num tipo pra editar o modo de cálculo dele.",
                      font=FONT_SMALL, text_color=INK_SOFT, anchor="w", justify="left").pack(
             fill="x", padx=20, pady=(0, 8))
 
-        lista_wrap = ctk.CTkScrollableFrame(popup, fg_color="transparent", height=140)
+        lista_wrap = ctk.CTkScrollableFrame(conteudo, fg_color="transparent", height=140)
         lista_wrap.pack(fill="x", padx=20)
 
         nome_var = tk.StringVar()
@@ -404,13 +412,13 @@ class FuncionariosScreen(ctk.CTkScrollableFrame):
 
         render_lista()
 
-        ctk.CTkLabel(popup, text="Nome do tipo", font=FONT_SMALL, text_color=INK_SOFT, anchor="w").pack(
+        ctk.CTkLabel(conteudo, text="Nome do tipo", font=FONT_SMALL, text_color=INK_SOFT, anchor="w").pack(
             fill="x", padx=20, pady=(16, 2))
-        ctk.CTkEntry(popup, textvariable=nome_var, placeholder_text="Ex: Estoque").pack(fill="x", padx=20)
+        ctk.CTkEntry(conteudo, textvariable=nome_var, placeholder_text="Ex: Estoque").pack(fill="x", padx=20)
 
-        ctk.CTkLabel(popup, text="Modo de cálculo", font=FONT_SMALL, text_color=INK_SOFT, anchor="w").pack(
+        ctk.CTkLabel(conteudo, text="Modo de cálculo", font=FONT_SMALL, text_color=INK_SOFT, anchor="w").pack(
             fill="x", padx=20, pady=(14, 4))
-        modo_row = ctk.CTkFrame(popup, fg_color="transparent")
+        modo_row = ctk.CTkFrame(conteudo, fg_color="transparent")
         modo_row.pack(fill="x", padx=20)
         ctk.CTkRadioButton(modo_row, text="Padrão (metas individuais + comissão + bônus fixo de equipe)",
                            variable=modo_var, value="Padrão").pack(anchor="w", pady=(0, 4))
@@ -433,9 +441,9 @@ class FuncionariosScreen(ctk.CTkScrollableFrame):
             if tela_metas is not None and hasattr(tela_metas, "atualizar_listas"):
                 tela_metas.atualizar_listas()
 
-        ctk.CTkButton(popup, text="Salvar tipo", fg_color=TEAL, hover_color=TEAL_DARK,
+        ctk.CTkButton(conteudo, text="Salvar tipo", fg_color=TEAL, hover_color=TEAL_DARK,
                       command=salvar).pack(fill="x", padx=20, pady=(14, 8))
-        ctk.CTkButton(popup, text="Fechar", fg_color="transparent", border_width=1,
+        ctk.CTkButton(conteudo, text="Fechar", fg_color="transparent", border_width=1,
                       border_color=LINE, text_color=INK_SOFT,
                       command=popup.destroy).pack(fill="x", padx=20, pady=(0, 20))
 
